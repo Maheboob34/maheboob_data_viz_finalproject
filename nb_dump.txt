@@ -1,0 +1,1502 @@
+=== CELL 0 [MARKDOWN] ===
+# Hospital Quality and Readmission Analysis: Exploring Organizational and Patient Experience Factors Associated with Hospital Performance
+
+# Hospital Quality and Readmission Analysis: Exploring Organizational and Patient Experience Factors Associated with Hospital Performance
+
+### Final Project Report
+
+---
+
+**Submitted by:**  
+**Name:** Maheboob Patel
+**Student ID:** 59256350
+
+**Course:** *Data Visualization*  
+
+**Instructor / Supervisor:**  
+Dina Deifallah
+
+**Department:**  
+Department of  data sciene and business
+
+**Institution:**  
+university of europe for applied sciences
+
+
+# Introduction
+
+Healthcare quality is a critical component of modern healthcare systems, influencing patient outcomes, healthcare costs, and overall public trust. Among the many indicators used to evaluate hospital performance, hospital readmission rates have received considerable attention because they reflect the effectiveness of clinical care, discharge planning, and care coordination. Excessive readmissions not only increase healthcare expenditures but may also indicate opportunities for improving patient care.
+
+
+This project investigates the relationships between organizational characteristics, patient experience, and hospital quality outcomes across U.S. hospitals. By integrating multiple CMS datasets, the analysis explores how hospital ratings, patient experience, ownership, emergency service availability, and clinical quality measures are associated with excess readmission performance. Interactive visualizations and statistical analyses are used to identify patterns, compare hospital performance, and provide insights into the factors associated with high-quality healthcare delivery.
+
+=== CELL 1 [MARKDOWN] ===
+# Data Collection
+
+The data used in this project were obtained from the **Centers for Medicare & Medicaid Services (CMS) Care Compare** public reporting program. CMS publishes hospital quality datasets that evaluate multiple aspects of healthcare performance, including patient experience, hospital characteristics, clinical outcomes, safety, and readmission measures.
+
+Three publicly available CMS datasets were combined to create a comprehensive hospital quality dataset:
+
+1. **Hospital General Information**
+   - Hospital identifiers and names
+   - State
+   - Hospital ownership
+   - Hospital type
+   - Emergency service availability
+   - CMS Overall Hospital Rating
+   - Summary counts of mortality, safety, and readmission measures performing better than the national average
+
+2. **Hospital Consumer Assessment of Healthcare Providers and Systems (HCAHPS)**
+   - Nurse communication
+   - Doctor communication
+   - Communication about medicines
+   - Care transition
+   - Cleanliness
+   - Quietness
+   - Overall patient rating
+   - Likelihood of recommending the hospital
+
+   These measures were combined to construct a **Patient Experience Index**, representing overall patient-centered care performance.
+
+3. **Hospital Readmission Reduction Program**
+   - Excess Readmission Ratio
+   - Predicted Readmission Rate
+   - Expected Readmission Rate
+   - Number of Discharges
+   - Number of Readmissions
+   - Clinical readmission measures for six major conditions and procedures
+
+The datasets were integrated using the unique **Facility ID**, producing a unified dataset that combines organizational characteristics, patient experience measures, and clinical quality indicators for hospitals across the United States.
+
+=== CELL 2 [CODE] ===
+# ============================
+# Import Libraries
+# ============================
+
+import pandas as pd
+import numpy as np
+
+# Display settings
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_rows", 100)
+pd.set_option("display.float_format", "{:.2f}".format)
+
+print("Libraries imported successfully.")
+
+=== CELL 3 [CODE] ===
+hospital = pd.read_csv("/content/Hospital_General_Information.csv")
+
+hcahps = pd.read_csv("/content/HCAHPS-Hospital.csv")
+
+readmission = pd.read_csv(
+    "/content/FY_2026_Hospital_Readmissions_Reduction_Program_Hospital.csv"
+)
+
+=== CELL 4 [CODE] ===
+def inspect_dataset(df, name):
+    print("="*70)
+    print(name)
+    print("="*70)
+
+    print(f"Shape : {df.shape}")
+
+    print("\nColumns:")
+    print(df.columns.tolist())
+
+    print("\nData Types:")
+    print(df.dtypes)
+
+    print("\nMissing Values:")
+    print(df.isna().sum().sort_values(ascending=False).head(15))
+
+    print("\nFirst 5 Rows:")
+    display(df.head())
+
+=== CELL 5 [CODE] ===
+inspect_dataset(hospital, "Hospital General Information")
+
+inspect_dataset(hcahps, "HCAHPS")
+
+inspect_dataset(readmission, "Readmission")
+
+=== CELL 6 [CODE] ===
+summary = pd.DataFrame({
+    "Dataset":[
+        "Hospital",
+        "HCAHPS",
+        "Readmission"
+    ],
+    "Rows":[
+        hospital.shape[0],
+        hcahps.shape[0],
+        readmission.shape[0]
+    ],
+    "Columns":[
+        hospital.shape[1],
+        hcahps.shape[1],
+        readmission.shape[1]
+    ]
+})
+
+summary
+
+=== CELL 7 [MARKDOWN] ===
+# 1. Data Cleaning - Hospital General Information
+
+The Hospital General Information dataset serves as the master dataset for this project. It contains one record per hospital and includes organizational characteristics, overall quality ratings, and summary performance indicators.
+
+In this section, we will:
+- Inspect the dataset
+- Remove unnecessary variables
+- Handle missing values
+- Convert variables to appropriate data types
+- Prepare the dataset for merging
+
+=== CELL 8 [CODE] ===
+# Check for duplicate hospitals
+
+print(f"Total Rows: {hospital.shape[0]}")
+print(f"Unique Facility IDs: {hospital['Facility ID'].nunique()}")
+
+duplicates = hospital['Facility ID'].duplicated().sum()
+
+print(f"Duplicate Facility IDs: {duplicates}")
+
+=== CELL 9 [CODE] ===
+hospital = hospital[
+    [
+        "Facility ID",
+        "Facility Name",
+        "State",
+        "Hospital Type",
+        "Hospital Ownership",
+        "Emergency Services",
+        "Hospital overall rating",
+        "Count of MORT Measures Better",
+        "Count of Safety Measures Better",
+        "Count of READM Measures Better",
+        "Count of READM Measures Worse",
+    ]
+]
+
+=== CELL 10 [CODE] ===
+hospital.isnull().sum()
+
+=== CELL 11 [CODE] ===
+numeric_cols = [
+    "Hospital overall rating",
+    "Count of MORT Measures Better",
+    "Count of Safety Measures Better",
+    "Count of READM Measures Better",
+    "Count of READM Measures Worse",
+]
+
+for col in numeric_cols:
+    hospital[col] = pd.to_numeric(hospital[col], errors="coerce")
+
+=== CELL 12 [CODE] ===
+hospital.info()
+
+=== CELL 13 [CODE] ===
+hospital.isnull().sum().sort_values(ascending=False)
+
+=== CELL 14 [MARKDOWN] ===
+# 2. Data Cleaning - HCAHPS Patient Survey
+
+The HCAHPS dataset contains patient experience survey results for U.S. hospitals.
+Each hospital has multiple rows representing different survey measures.
+
+The objectives of this section are to:
+
+- Select the most relevant patient experience measures
+- Clean numeric values
+- Pivot the dataset from long format to wide format
+- Create one record per hospital
+
+=== CELL 15 [CODE] ===
+# Number of unique measures
+print("Unique Measure IDs:", hcahps["HCAHPS Measure ID"].nunique())
+
+# Display all unique measures
+sorted(hcahps["HCAHPS Measure ID"].unique())
+
+=== CELL 16 [CODE] ===
+hcahps[["HCAHPS Measure ID","HCAHPS Question"]].drop_duplicates().sort_values("HCAHPS Measure ID")
+
+=== CELL 17 [CODE] ===
+selected_measures = [
+    "H_COMP_1_LINEAR_SCORE",
+    "H_COMP_2_LINEAR_SCORE",
+    "H_COMP_5_LINEAR_SCORE",
+    "H_COMP_6_LINEAR_SCORE",
+    "H_CLEAN_LINEAR_SCORE",
+    "H_QUIET_LINEAR_SCORE",
+    "H_RECMND_LINEAR_SCORE",
+    "H_HSP_RATING_LINEAR_SCORE"
+]
+
+=== CELL 18 [CODE] ===
+hcahps_filtered = hcahps[
+    hcahps["HCAHPS Measure ID"].isin(selected_measures)
+].copy()
+
+hcahps_filtered = hcahps_filtered[
+    [
+        "Facility ID",
+        "Facility Name",
+        "State",
+        "HCAHPS Measure ID",
+        "HCAHPS Linear Mean Value"
+    ]
+]
+
+=== CELL 19 [CODE] ===
+hcahps_filtered["HCAHPS Linear Mean Value"] = (
+    hcahps_filtered["HCAHPS Linear Mean Value"]
+        .replace("Not Available", np.nan)
+)
+
+hcahps_filtered["HCAHPS Linear Mean Value"] = pd.to_numeric(
+    hcahps_filtered["HCAHPS Linear Mean Value"],
+    errors="coerce"
+)
+
+=== CELL 20 [CODE] ===
+hcahps_wide = hcahps_filtered.pivot_table(
+    index=["Facility ID", "Facility Name", "State"],
+    columns="HCAHPS Measure ID",
+    values="HCAHPS Linear Mean Value"
+).reset_index()
+
+=== CELL 21 [CODE] ===
+hcahps_wide = hcahps_wide.rename(columns={
+    "H_COMP_1_LINEAR_SCORE": "Nurse Communication",
+    "H_COMP_2_LINEAR_SCORE": "Doctor Communication",
+    "H_COMP_5_LINEAR_SCORE": "Communication About Medicines",
+    "H_COMP_6_LINEAR_SCORE": "Care Transition",
+    "H_CLEAN_LINEAR_SCORE": "Cleanliness",
+    "H_QUIET_LINEAR_SCORE": "Quietness",
+    "H_RECMND_LINEAR_SCORE": "Recommend Hospital",
+    "H_HSP_RATING_LINEAR_SCORE": "Overall Patient Rating"
+})
+
+=== CELL 22 [CODE] ===
+hcahps_wide.describe()
+
+=== CELL 23 [CODE] ===
+hcahps_wide.to_csv("hcahps_clean.csv", index=False)
+
+=== CELL 24 [CODE] ===
+sorted(hcahps["HCAHPS Measure ID"].unique())
+
+=== CELL 25 [CODE] ===
+experience_cols = [
+    "Nurse Communication",
+    "Doctor Communication",
+    "Communication About Medicines",
+    "Care Transition",
+    "Cleanliness",
+    "Quietness",
+    "Recommend Hospital",
+    "Overall Patient Rating"
+]
+
+hcahps_wide["Patient Experience Index"] = (
+    hcahps_wide[experience_cols]
+    .mean(axis=1)
+    .round(2)
+)
+
+=== CELL 26 [MARKDOWN] ===
+# 3. Data Cleaning - Hospital Readmission Dataset
+
+The Hospital Readmissions Reduction Program (HRRP) dataset contains
+hospital-level readmission outcomes for six medical conditions.
+
+In this section we will:
+
+- Clean missing values
+- Convert variables to correct data types
+- Standardize Facility IDs
+- Prepare the dataset for merging
+
+=== CELL 27 [CODE] ===
+readm = readmission.copy()
+
+=== CELL 28 [CODE] ===
+readm["Facility ID"] = (
+    readm["Facility ID"]
+    .astype(str)
+    .str.zfill(6)
+)
+
+=== CELL 29 [CODE] ===
+
+
+readm["Number of Readmissions"] = (
+    readm["Number of Readmissions"]
+        .replace("Too Few to Report", np.nan)
+)
+
+=== CELL 30 [CODE] ===
+numeric_cols = [
+    "Number of Discharges",
+    "Excess Readmission Ratio",
+    "Predicted Readmission Rate",
+    "Expected Readmission Rate",
+    "Number of Readmissions"
+]
+
+for col in numeric_cols:
+    readm[col] = pd.to_numeric(
+        readm[col],
+        errors="coerce"
+    )
+
+=== CELL 31 [CODE] ===
+readm = readm[
+    [
+        "Facility ID",
+        "Facility Name",
+        "State",
+        "Measure Name",
+        "Excess Readmission Ratio",
+        "Predicted Readmission Rate",
+        "Expected Readmission Rate",
+        "Number of Discharges",
+        "Number of Readmissions",
+    ]
+]
+
+=== CELL 32 [CODE] ===
+readm.isnull().sum().sort_values(ascending=False)
+
+=== CELL 33 [CODE] ===
+print(readm["Measure Name"].unique())
+
+=== CELL 34 [CODE] ===
+condition_map = {
+    "READM-30-AMI-HRRP": "Heart Attack (AMI)",
+    "READM-30-CABG-HRRP": "CABG Surgery",
+    "READM-30-COPD-HRRP": "COPD",
+    "READM-30-HF-HRRP": "Heart Failure",
+    "READM-30-HIP-KNEE-HRRP": "Hip/Knee Replacement",
+    "READM-30-PN-HRRP": "Pneumonia"
+}
+
+readm["Measure Name"] = readm["Measure Name"].replace(condition_map)
+
+=== CELL 35 [MARKDOWN] ===
+# 4. Data Integration
+
+After cleaning the three CMS datasets, the next step is to combine them into one analysis-ready dataset.
+
+Merge process:
+
+Hospital General Information
+        +
+HCAHPS Patient Experience
+        +
+Hospital Readmissions
+
+The merged dataset will contain:
+
+- Hospital characteristics
+- Patient experience indicators
+- Readmission outcomes
+
+This integrated dataset will serve as the foundation for all exploratory analysis, visualizations, and research questions.
+
+=== CELL 36 [CODE] ===
+print("Hospital:", hospital.shape)
+print("HCAHPS:", hcahps_wide.shape)
+print("Readmission:", readm.shape)
+
+=== CELL 37 [CODE] ===
+hospital_profile = pd.merge(
+    hospital,
+    hcahps_wide.drop(columns=["Facility Name", "State"]),
+    on="Facility ID",
+    how="left"
+)
+
+=== CELL 38 [CODE] ===
+hospital_profile.shape
+
+=== CELL 39 [CODE] ===
+final_df = pd.merge(
+    readm,
+    hospital_profile.drop(columns=["Facility Name", "State"]),
+    on="Facility ID",
+    how="left"
+)
+
+=== CELL 40 [CODE] ===
+print(final_df.shape)
+
+=== CELL 41 [CODE] ===
+final_df.head()
+
+=== CELL 42 [CODE] ===
+final_df.duplicated().sum()
+
+=== CELL 43 [CODE] ===
+data_dictionary = pd.DataFrame({
+    "Column": final_df.columns,
+    "Data Type": final_df.dtypes.astype(str).values,
+    "Missing Values": final_df.isnull().sum().values
+})
+
+data_dictionary
+
+=== CELL 44 [CODE] ===
+print("="*60)
+
+print("Rows:", final_df.shape[0])
+
+print("Columns:", final_df.shape[1])
+
+print("Unique Hospitals:",
+      final_df["Facility ID"].nunique())
+
+print("States:",
+      final_df["State"].nunique())
+
+print("Conditions:",
+      final_df["Measure Name"].nunique())
+
+print("="*60)
+
+=== CELL 45 [MARKDOWN] ===
+# Research Question 1
+
+## Which patient experience dimensions are most strongly associated with hospital readmission performance?
+
+### Background
+
+Patient experience is an important indicator of healthcare quality and has been linked to clinical outcomes. Effective communication between healthcare providers and patients may improve adherence to treatment plans, discharge instructions, and follow-up care, potentially reducing hospital readmissions.
+
+### Objective
+
+To identify which patient experience dimensions have the strongest association with hospital readmission performance.
+
+=== CELL 46 [CODE] ===
+rq2 = final_df[
+    [
+        "Nurse Communication",
+        "Doctor Communication",
+        "Communication About Medicines",
+        "Care Transition",
+        "Cleanliness",
+        "Quietness",
+        "Recommend Hospital",
+        "Overall Patient Rating",
+        "Patient Experience Index",
+        "Excess Readmission Ratio"
+    ]
+].copy()
+
+rq2 = rq2.dropna()
+
+print(rq2.shape)
+
+=== CELL 47 [CODE] ===
+correlation = rq2.corr(numeric_only=True)
+
+correlation
+
+=== CELL 48 [CODE] ===
+err_corr = (
+    correlation["Excess Readmission Ratio"]
+    .drop("Excess Readmission Ratio")
+    .sort_values()
+)
+
+err_corr
+
+=== CELL 49 [CODE] ===
+import plotly.express as px
+
+fig = px.imshow(
+    correlation,
+    text_auto=".2f",
+    color_continuous_scale="RdBu_r",
+    zmin=-1,
+    zmax=1,
+    title="Correlation Between Patient Experience Measures and Readmission Performance"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    height=700,
+    title_x=0.5
+)
+
+fig.show()
+
+=== CELL 50 [MARKDOWN] ===
+### Interpretation
+
+The correlation analysis examined the relationship between nine patient experience measures and the Excess Readmission Ratio.
+
+All patient experience measures exhibited **negative correlations** with readmission performance, indicating that hospitals with higher patient satisfaction scores generally tended to have lower excess readmission ratios. However, the relationships were relatively weak, with correlation coefficients ranging from **-0.08** to **-0.16**.
+
+Among the measures, **Doctor Communication** showed the strongest negative association with readmission performance (**r = -0.16**), followed by **Care Transition**, **Patient Experience Index**, and **Recommend Hospital** (all **r = -0.15**). These findings suggest that hospitals providing clear communication and effective discharge planning may experience slightly better readmission outcomes.
+
+Conversely, **Cleanliness** and **Quietness** demonstrated the weakest relationships (both **r = -0.08**), indicating that while these aspects contribute to the overall patient experience, they appear to have less direct association with hospital readmission performance.
+
+Overall, the findings suggest that improvements in patient-provider communication and care transition processes may be more closely associated with reducing readmissions than environmental factors alone.
+
+=== CELL 51 [MARKDOWN] ===
+### Key Takeaway
+
+Doctor communication demonstrated the strongest association with lower excess readmission ratios, followed closely by care transition and patients' willingness to recommend the hospital. Although these relationships are modest, they suggest that effective communication and discharge planning may contribute to improved hospital outcomes.
+
+=== CELL 52 [MARKDOWN] ===
+# Research Question 2
+
+## Do hospitals with higher CMS overall ratings achieve lower excess readmission ratios?
+
+### Background
+
+The Centers for Medicare & Medicaid Services (CMS) assigns an overall hospital rating based on multiple quality dimensions, including mortality, safety, patient experience, readmissions, and timely care. While this rating summarizes hospital quality, it is useful to investigate whether hospitals with higher overall ratings also experience lower excess readmission ratios.
+
+### Objective
+
+To examine the relationship between CMS overall hospital ratings and hospital readmission performance.
+
+=== CELL 53 [CODE] ===
+rq1 = final_df[
+    [
+        "Hospital overall rating",
+        "Excess Readmission Ratio",
+        "Facility Name",
+        "State"
+    ]
+].copy()
+
+=== CELL 54 [CODE] ===
+corr = rq1["Hospital overall rating"].corr(
+    rq1["Excess Readmission Ratio"]
+)
+
+print(f"Correlation: {corr:.3f}")
+
+=== CELL 55 [CODE] ===
+import plotly.express as px
+
+fig = px.scatter(
+    rq1,
+    x="Hospital overall rating",
+    y="Excess Readmission Ratio",
+    trendline="ols",
+    opacity=0.6,
+    hover_data=["Facility Name", "State"],
+    title="Relationship Between Hospital Overall Rating and Excess Readmission Ratio"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    height=600,
+    title_x=0.5,
+    xaxis_title="CMS Overall Hospital Rating",
+    yaxis_title="Excess Readmission Ratio"
+)
+
+fig.show()
+
+=== CELL 56 [MARKDOWN] ===
+### Interpretation
+
+The scatter plot examines the relationship between CMS Overall Hospital Rating and the Excess Readmission Ratio.
+
+The Pearson correlation coefficient was **-0.265**, indicating a **weak negative relationship** between the two variables. This suggests that hospitals receiving higher CMS overall ratings generally tend to have lower excess readmission ratios.
+
+The fitted regression line also slopes downward, reinforcing this negative association. However, the considerable spread of points around the trendline indicates that hospital rating alone does not fully explain differences in readmission performance.
+
+Overall, the findings suggest that while better-rated hospitals are associated with improved readmission outcomes, additional organizational and clinical factors are likely to contribute to hospital performance.
+
+=== CELL 57 [MARKDOWN] ===
+### Key Takeaway
+
+Hospitals with higher CMS Overall Hospital Ratings generally exhibit lower excess readmission ratios. However, the relationship is relatively weak, indicating that readmission performance is influenced by multiple factors beyond the overall quality rating.
+
+=== CELL 58 [MARKDOWN] ===
+# Research Question 3
+
+## Does hospital ownership influence excess readmission performance?
+
+### Background
+
+Hospital ownership influences organizational structure, funding models, and operational priorities, which may affect healthcare quality and patient outcomes. Comparing readmission performance across ownership types helps determine whether ownership is associated with differences in hospital quality.
+
+### Objective
+
+To compare excess readmission ratios among different hospital ownership categories.
+
+=== CELL 59 [CODE] ===
+# @title
+rq3 = final_df[
+    [
+        "Hospital Ownership",
+        "Excess Readmission Ratio"
+    ]
+].copy()
+
+rq3 = rq3.dropna()
+
+print(rq3.shape)
+rq3.head()
+
+=== CELL 60 [CODE] ===
+# @title
+counts = rq3["Hospital Ownership"].value_counts()
+
+valid_groups = counts[counts >= 100].index
+
+rq3 = rq3[rq3["Hospital Ownership"].isin(valid_groups)]
+
+=== CELL 61 [CODE] ===
+ownership_summary = (
+    rq3.groupby("Hospital Ownership")["Excess Readmission Ratio"]
+       .agg(
+           Mean="mean",
+           Median="median",
+           Std="std",
+           Count="count"
+       )
+       .round(3)
+       .sort_values("Mean")
+)
+
+ownership_summary
+
+=== CELL 62 [CODE] ===
+import plotly.express as px
+
+fig = px.box(
+    rq3,
+    x="Hospital Ownership",
+    y="Excess Readmission Ratio",
+    color="Hospital Ownership",
+    points="outliers",
+    title="Excess Readmission Ratio by Hospital Ownership"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    height=600,
+    title_x=0.5,
+    showlegend=False,
+    xaxis_title="Hospital Ownership",
+    yaxis_title="Excess Readmission Ratio"
+)
+
+fig.update_xaxes(tickangle=20)
+
+fig.show()
+
+=== CELL 63 [CODE] ===
+from scipy.stats import f_oneway
+
+groups = [
+    group["Excess Readmission Ratio"].values
+    for _, group in rq3.groupby("Hospital Ownership")
+]
+
+f_stat, p_value = f_oneway(*groups)
+
+print(f"F-statistic: {f_stat:.3f}")
+print(f"P-value: {p_value:.4f}")
+
+=== CELL 64 [MARKDOWN] ===
+### Interpretation
+
+The box plot and summary statistics compare excess readmission ratios across major hospital ownership categories.
+
+Among the ownership groups, **Voluntary Non-profit (Church)** hospitals achieved the lowest average Excess Readmission Ratio (0.99), indicating slightly better readmission performance. In contrast, **Proprietary** hospitals recorded the highest average ratio (1.02), while the remaining government and non-profit ownership groups clustered around the overall average of 1.00.
+
+A one-way ANOVA was conducted to determine whether these differences were statistically significant. The analysis produced an **F-statistic of 15.255** with a **p-value < 0.001**, indicating statistically significant differences in excess readmission ratios across hospital ownership categories.
+
+Although the differences in average readmission ratios are relatively small, the results suggest that ownership structure is associated with hospital readmission performance. However, ownership alone is unlikely to explain these differences, as hospital resources, patient populations, and organizational practices also contribute to readmission outcomes.
+
+=== CELL 65 [MARKDOWN] ===
+### Key Takeaway
+
+Hospital ownership is significantly associated with excess readmission performance. Non-profit hospitals generally demonstrated slightly lower readmission ratios than proprietary hospitals, although the magnitude of the differences was modest, suggesting that multiple organizational and clinical factors influence hospital outcomes.
+
+=== CELL 66 [MARKDOWN] ===
+# Research Question 4
+
+## Do hospitals with emergency services provide a better patient experience than hospitals without emergency services?
+
+### Background
+
+Emergency departments are often the primary point of contact for patients requiring urgent medical care. Hospitals providing emergency services generally manage a higher volume and greater complexity of patients, which may influence patients' overall healthcare experience.
+
+### Objective
+
+To compare the Patient Experience Index between hospitals that provide emergency services and those that do not.
+
+=== CELL 67 [CODE] ===
+# @title
+rq4 = final_df[
+    [
+        "Emergency Services",
+        "Patient Experience Index"
+    ]
+].copy()
+
+rq4 = rq4.dropna()
+
+rq4.head()
+
+=== CELL 68 [CODE] ===
+summary = (
+    rq4.groupby("Emergency Services")["Patient Experience Index"]
+       .agg(
+           Mean="mean",
+           Median="median",
+           Std="std",
+           Count="count"
+       )
+       .round(2)
+)
+
+summary
+
+=== CELL 69 [CODE] ===
+import plotly.express as px
+
+fig = px.violin(
+    rq4,
+    x="Emergency Services",
+    y="Patient Experience Index",
+    color="Emergency Services",
+    box=True,
+    points="outliers",
+    title="Patient Experience Index by Emergency Service Availability"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    showlegend=False,
+    height=600,
+    xaxis_title="Emergency Services",
+    yaxis_title="Patient Experience Index"
+)
+
+fig.show()
+
+=== CELL 70 [CODE] ===
+from scipy.stats import ttest_ind
+
+yes = rq4[rq4["Emergency Services"]=="Yes"]["Patient Experience Index"]
+
+no = rq4[rq4["Emergency Services"]=="No"]["Patient Experience Index"]
+
+t_stat, p_value = ttest_ind(
+    yes,
+    no,
+    equal_var=False
+)
+
+print(f"T-statistic: {t_stat:.3f}")
+print(f"P-value: {p_value:.4f}")
+
+=== CELL 71 [MARKDOWN] ===
+### Interpretation
+
+The comparison of patient experience scores indicates a statistically significant difference between hospitals that provide emergency services and those that do not.
+
+Hospitals **without emergency services** reported a higher average Patient Experience Index (**86.97**) than hospitals **with emergency services** (**85.18**). Although the difference is relatively small (approximately 1.8 points), it was statistically significant according to the independent samples t-test (**t = -15.120, p < 0.001**).
+
+One possible explanation is that hospitals offering emergency services often manage higher patient volumes, more urgent medical conditions, and greater operational complexity. These factors may influence patients' perceptions of communication, waiting times, and overall care experience.
+
+Overall, the findings suggest that the availability of emergency services is associated with differences in patient experience, although this relationship should be interpreted within the broader context of hospital size, case complexity, and service demands.
+
+=== CELL 72 [MARKDOWN] ===
+### Key Takeaway
+
+Hospitals without emergency services achieved significantly higher patient experience scores than hospitals with emergency services. This suggests that operational complexity and patient case mix may influence patient satisfaction in addition to the quality of care delivered.
+
+=== CELL 73 [MARKDOWN] ===
+# Research Question 5
+
+## Which states demonstrate the strongest combination of high patient experience and low readmission ratios?
+
+### Background
+
+Hospital quality varies across the United States due to differences in healthcare systems, funding, patient populations, and clinical practices. Examining state-level averages provides insight into regional patterns of healthcare quality.
+
+### Objective
+
+To identify states that achieve both high patient experience scores and low excess readmission ratios.
+
+=== CELL 74 [CODE] ===
+# @title
+rq5 = (
+    final_df.groupby("State")
+    .agg(
+        Avg_Patient_Experience=("Patient Experience Index", "mean"),
+        Avg_Readmission=("Excess Readmission Ratio", "mean"),
+        Hospitals=("Facility ID", "nunique")
+    )
+    .reset_index()
+)
+
+rq5.head()
+
+=== CELL 75 [CODE] ===
+rq5.sort_values("Avg_Patient_Experience", ascending=False).head(10)
+
+=== CELL 76 [CODE] ===
+import plotly.express as px
+
+fig = px.scatter(
+    rq5,
+    x="Avg_Patient_Experience",
+    y="Avg_Readmission",
+    size="Hospitals",
+    hover_name="State",
+    text="State",
+    title="State-Level Patient Experience and Readmission Performance",
+    labels={
+        "Avg_Patient_Experience": "Average Patient Experience Index",
+        "Avg_Readmission": "Average Excess Readmission Ratio"
+    }
+)
+
+fig.update_traces(textposition="top center")
+
+fig.update_layout(
+    template="plotly_white",
+    height=700,
+    title_x=0.5
+)
+
+fig.show()
+
+=== CELL 77 [MARKDOWN] ===
+### Interpretation
+
+The state-level analysis reveals meaningful geographic variation in hospital quality across the United States.
+
+Several states achieved both high patient experience scores and low excess readmission ratios, indicating strong overall hospital performance. Among these, **South Dakota** recorded the highest average Patient Experience Index (88.83) while maintaining a relatively low Average Excess Readmission Ratio (0.97). **Utah**, **Idaho**, **Kansas**, and **Colorado** also demonstrated favorable performance on both indicators.
+
+The bubble chart further illustrates that states with larger numbers of hospitals are not necessarily associated with better healthcare outcomes. For example, some smaller states consistently outperformed larger healthcare systems in terms of patient satisfaction and readmission performance.
+
+Overall, the findings suggest that regional healthcare practices, hospital management, and care coordination may contribute to differences in hospital quality across states.
+
+=== CELL 78 [MARKDOWN] ===
+### Key Takeaway
+
+Several states—including South Dakota, Utah, Idaho, and Kansas—demonstrated a strong balance of high patient experience and low readmission ratios. These findings indicate that high-quality patient-centered care and favorable clinical outcomes can be achieved simultaneously at the state level.
+
+=== CELL 79 [MARKDOWN] ===
+# Research Question 6
+
+## Which medical conditions have the highest excess readmission ratios?
+
+### Background
+
+Readmission performance varies across medical conditions because patients differ in disease severity, treatment complexity, and follow-up care requirements. Comparing excess readmission ratios across conditions provides insight into which clinical areas present the greatest challenges for hospitals.
+
+### Objective
+
+To compare excess readmission ratios across the six CMS readmission conditions.
+
+=== CELL 80 [CODE] ===
+rq6 = final_df[
+    [
+        "Measure Name",
+        "Excess Readmission Ratio"
+    ]
+].copy()
+
+rq6 = rq6.dropna()
+
+rq6.head()
+
+=== CELL 81 [CODE] ===
+condition_summary = (
+    rq6.groupby("Measure Name")["Excess Readmission Ratio"]
+       .agg(
+           Mean="mean",
+           Median="median",
+           Std="std",
+           Count="count"
+       )
+       .round(3)
+       .sort_values("Mean", ascending=False)
+)
+
+condition_summary
+
+=== CELL 82 [CODE] ===
+import plotly.express as px
+
+summary = (
+    rq6.groupby("Measure Name")["Excess Readmission Ratio"]
+       .agg(
+           Mean="mean",
+           Std="std"
+       )
+       .reset_index()
+)
+
+fig = px.scatter(
+    summary,
+    x="Measure Name",
+    y="Mean",
+    error_y="Std",
+    size_max=12,
+    title="Average Excess Readmission Ratio by Medical Condition"
+)
+
+fig.update_traces(
+    mode="markers+lines",
+    marker=dict(size=12)
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    xaxis_title="Medical Condition",
+    yaxis_title="Average Excess Readmission Ratio"
+)
+
+fig.show()
+
+=== CELL 83 [CODE] ===
+from scipy.stats import f_oneway
+
+groups = [
+    group["Excess Readmission Ratio"].values
+    for _, group in rq6.groupby("Measure Name")
+]
+
+F, p = f_oneway(*groups)
+
+print(f"F-statistic: {F:.3f}")
+print(f"P-value: {p:.4f}")
+
+=== CELL 84 [MARKDOWN] ===
+### Interpretation
+
+The comparison of excess readmission ratios across the six CMS medical conditions showed very similar average values. Hip/Knee Replacement, CABG Surgery, Heart Attack (AMI), COPD, Heart Failure, and Pneumonia all recorded average Excess Readmission Ratios close to **1.00**, indicating little variation in overall readmission performance across conditions.
+
+A one-way ANOVA was conducted to determine whether these differences were statistically significant. The analysis produced an **F-statistic of 0.254** with a **p-value of 0.938**, indicating no statistically significant differences in excess readmission ratios among the six medical conditions.
+
+These findings suggest that, after CMS risk adjustment, hospitals perform similarly across the major readmission conditions. Therefore, differences in readmission performance may be more strongly associated with hospital characteristics and care quality than with the specific medical condition itself.
+
+=== CELL 85 [MARKDOWN] ===
+### Key Takeaway
+
+Average excess readmission ratios were consistent across all six CMS medical conditions. This suggests that condition type alone does not explain variation in hospital readmission performance, emphasizing the importance of organizational and patient care factors examined in earlier analyses.
+
+=== CELL 86 [MARKDOWN] ===
+# Research Question 7
+
+## What characteristics distinguish the highest-rated hospitals from the lowest-rated hospitals?
+
+### Background
+
+The CMS Overall Hospital Rating summarizes multiple aspects of hospital quality, including patient outcomes, safety, and patient experience. Comparing hospitals at the highest and lowest ends of the rating scale provides insight into the characteristics associated with exceptional hospital performance.
+
+### Objective
+
+To compare key quality indicators between **1-star** and **5-star** hospitals and identify the factors that distinguish the highest-performing hospitals from the lowest-performing hospitals.
+
+### Quality Indicators Examined
+
+The comparison focuses on the following indicators:
+
+- Patient Experience Index
+- Excess Readmission Ratio
+- Count of Mortality Measures Better than the National Average
+- Count of Safety Measures Better than the National Average
+- Count of Readmission Measures Better than the National Average
+
+By examining these indicators simultaneously, this analysis provides a comprehensive assessment of the differences between high-performing and low-performing hospitals.
+
+=== CELL 87 [CODE] ===
+# @title
+rq7 = final_df[
+    final_df["Hospital overall rating"].isin([1, 5])
+].copy()
+
+rq7.head()
+
+=== CELL 88 [CODE] ===
+comparison = (
+    rq7.groupby("Hospital overall rating")
+       .agg({
+           "Patient Experience Index":"mean",
+           "Excess Readmission Ratio":"mean",
+           "Count of MORT Measures Better":"mean",
+           "Count of Safety Measures Better":"mean",
+           "Count of READM Measures Better":"mean"
+       })
+       .round(2)
+)
+
+comparison
+
+=== CELL 89 [CODE] ===
+comparison_plot = (
+    comparison
+    .reset_index()
+    .melt(
+        id_vars="Hospital overall rating",
+        var_name="Metric",
+        value_name="Value"
+    )
+)
+
+comparison_plot.head()
+
+=== CELL 90 [CODE] ===
+import plotly.express as px
+
+fig = px.bar(
+    comparison_plot,
+    x="Metric",
+    y="Value",
+    color="Hospital overall rating",
+    barmode="group",
+    title="Comparison of Quality Indicators Between 1-Star and 5-Star Hospitals",
+    labels={
+        "Hospital overall rating":"Hospital Rating"
+    }
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    height=600,
+    xaxis_title="Quality Indicator",
+    yaxis_title="Average Value"
+)
+
+fig.show()
+
+=== CELL 91 [MARKDOWN] ===
+### Interpretation
+
+The comparison between 1-star and 5-star hospitals revealed substantial differences across multiple quality indicators.
+
+Five-star hospitals reported a significantly higher average **Patient Experience Index (87.54)** compared with **81.15** for 1-star hospitals, indicating that patients consistently rated their experiences more positively in higher-rated hospitals.
+
+Similarly, five-star hospitals achieved a lower average **Excess Readmission Ratio (0.97)** than 1-star hospitals (**1.05**), suggesting better performance in preventing avoidable hospital readmissions.
+
+The remaining quality indicators—including the number of mortality, safety, and readmission measures performing better than the national average—also favored 5-star hospitals. This demonstrates that hospitals with the highest CMS ratings consistently perform better across both clinical quality and patient-centered care measures.
+
+Overall, the findings suggest that CMS Overall Hospital Ratings effectively differentiate hospitals with stronger overall quality performance from those with poorer performance.
+
+=== CELL 92 [MARKDOWN] ===
+### Key Takeaway
+
+Compared with 1-star hospitals, 5-star hospitals demonstrated better performance across multiple quality dimensions, including patient experience, readmission outcomes, mortality measures, and safety measures. This indicates that higher CMS Overall Ratings reflect consistently stronger hospital performance rather than excellence in only a single aspect of care.
+
+=== CELL 93 [MARKDOWN] ===
+# Research Question 8
+
+## Which hospitals demonstrate balanced performance across multiple quality dimensions?
+
+### Background
+
+Hospital quality extends beyond a single performance indicator. High-performing hospitals are expected to provide excellent patient experiences, maintain strong clinical outcomes, ensure patient safety, and minimize avoidable readmissions. Evaluating these dimensions together provides a more comprehensive understanding of hospital performance than examining each indicator individually.
+
+### Objective
+
+To develop a composite quality score by combining multiple quality dimensions and identify hospitals that demonstrate consistently strong performance across patient experience, clinical quality, safety, and readmission outcomes.
+
+### Quality Dimensions Included
+
+The composite quality assessment incorporates the following indicators:
+
+- Hospital Overall Rating
+- Patient Experience Index
+- Excess Readmission Ratio
+- Count of Mortality Measures Better than the National Average
+- Count of Safety Measures Better than the National Average
+- Count of Readmission Measures Better than the National Average
+
+Since these indicators are measured on different scales, they will be standardized before calculating an overall quality score. Hospitals will then be ranked to identify those demonstrating the most balanced performance across all quality dimensions.
+
+=== CELL 94 [CODE] ===
+import pandas as pd
+import numpy as np
+
+rq8 = final_df[
+    [
+        "Facility ID",
+        "Facility Name",
+        "State",
+        "Hospital overall rating",
+        "Patient Experience Index",
+        "Excess Readmission Ratio",
+        "Count of MORT Measures Better",
+        "Count of Safety Measures Better",
+        "Count of READM Measures Better"
+    ]
+].copy()
+
+rq8 = rq8.dropna()
+
+rq8.head()
+
+=== CELL 95 [CODE] ===
+hospital_scores = (
+    rq8.groupby(["Facility ID", "Facility Name", "State"], as_index=False)
+       .agg({
+           "Hospital overall rating": "mean",
+           "Patient Experience Index": "mean",
+           "Excess Readmission Ratio": "mean",
+           "Count of MORT Measures Better": "mean",
+           "Count of Safety Measures Better": "mean",
+           "Count of READM Measures Better": "mean"
+       })
+)
+
+=== CELL 96 [CODE] ===
+quality_cols = [
+    "Hospital overall rating",
+    "Patient Experience Index",
+    "Count of MORT Measures Better",
+    "Count of Safety Measures Better",
+    "Count of READM Measures Better"
+]
+
+for col in quality_cols:
+    hospital_scores[col + "_z"] = (
+        hospital_scores[col] - hospital_scores[col].mean()
+    ) / hospital_scores[col].std()
+
+hospital_scores["Readmission_z"] = -(
+    (hospital_scores["Excess Readmission Ratio"] -
+     hospital_scores["Excess Readmission Ratio"].mean())
+    / hospital_scores["Excess Readmission Ratio"].std()
+)
+
+=== CELL 97 [CODE] ===
+hospital_scores["Composite Quality Score"] = hospital_scores[
+    [
+        "Hospital overall rating_z",
+        "Patient Experience Index_z",
+        "Count of MORT Measures Better_z",
+        "Count of Safety Measures Better_z",
+        "Count of READM Measures Better_z",
+        "Readmission_z"
+    ]
+].mean(axis=1)
+
+=== CELL 98 [CODE] ===
+top_hospitals = (
+    hospital_scores[
+        [
+            "Facility Name",
+            "State",
+            "Composite Quality Score"
+        ]
+    ]
+    .sort_values("Composite Quality Score", ascending=False)
+    .head(10)
+)
+
+top_hospitals
+
+=== CELL 99 [CODE] ===
+# @title
+quality_cols = [
+    "Hospital overall rating",
+    "Patient Experience Index",
+    "Count of MORT Measures Better",
+    "Count of Safety Measures Better",
+    "Count of READM Measures Better"
+]
+
+for col in quality_cols:
+    rq8[col + "_z"] = (
+        rq8[col] - rq8[col].mean()
+    ) / rq8[col].std()
+
+# Lower readmission ratio is better, so reverse the sign
+rq8["Readmission_z"] = -(
+    (rq8["Excess Readmission Ratio"] -
+     rq8["Excess Readmission Ratio"].mean())
+    / rq8["Excess Readmission Ratio"].std()
+)
+
+=== CELL 100 [CODE] ===
+import plotly.express as px
+
+fig = px.bar(
+    top_hospitals.sort_values("Composite Quality Score"),
+    x="Composite Quality Score",
+    y="Facility Name",
+    color="Composite Quality Score",
+    orientation="h",
+    hover_data=["State"],
+    title="Top 10 Hospitals by Composite Quality Score",
+    color_continuous_scale="Viridis"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    xaxis_title="Composite Quality Score",
+    yaxis_title="Hospital"
+)
+
+fig.show()
+
+=== CELL 101 [MARKDOWN] ===
+### Interpretation
+
+A composite quality score was developed by combining standardized measures of hospital overall rating, patient experience, mortality performance, safety performance, readmission performance, and excess readmission ratios. Hospitals were then ranked based on their overall performance across these quality dimensions.
+
+The results identified **NYU Langone Hospitals (New York)** as the highest-performing hospital, achieving the highest composite quality score of **3.94**. Other leading hospitals included **Mayo Clinic Hospital Rochester (Minnesota)**, **Massachusetts General Hospital (Massachusetts)**, **Morristown Medical Center (New Jersey)**, and **Cedars-Sinai Medical Center (California)**.
+
+These hospitals consistently performed well across multiple quality dimensions, demonstrating strong patient experience, superior clinical outcomes, better safety performance, and lower excess readmission ratios. Rather than excelling in a single metric, the highest-ranked hospitals maintained consistently high performance across all indicators included in the composite quality score.
+
+Overall, the findings highlight that excellence in hospital quality is multidimensional, requiring strong performance across patient-centered care, clinical quality, patient safety, and readmission outcomes.
+
+=== CELL 102 [MARKDOWN] ===
+### Key Takeaway
+
+The highest-ranked hospitals demonstrated consistently strong performance across multiple quality dimensions rather than excelling in only one area. This suggests that delivering high-quality healthcare requires a balanced approach that combines excellent patient experience, strong clinical outcomes, effective safety practices, and reduced hospital readmissions.
+
+=== CELL 103 [MARKDOWN] ===
+# Research Question 9
+
+## Do hospitals that provide better patient experiences also demonstrate stronger clinical quality performance?
+
+### Background
+
+Hospital quality encompasses both patient-centered care and clinical outcomes. While patient experience reflects patients' perceptions of communication, responsiveness, and overall satisfaction, clinical quality measures evaluate hospitals based on objective indicators such as mortality, patient safety, and readmission performance. Understanding whether these dimensions are aligned helps determine whether hospitals delivering excellent patient experiences also achieve superior clinical quality.
+
+### Objective
+
+To examine the relationship between patient experience and key clinical quality measures by analyzing whether hospitals with higher Patient Experience Index scores also perform better on mortality, safety, and readmission quality indicators.
+
+=== CELL 104 [CODE] ===
+rq9 = hospital_scores.copy()
+
+rq9.head()
+
+=== CELL 105 [CODE] ===
+quality_measures = [
+    "Patient Experience Index",
+    "Count of MORT Measures Better",
+    "Count of Safety Measures Better",
+    "Count of READM Measures Better"
+]
+
+corr = rq9[quality_measures].corr()
+
+corr.round(3)
+
+=== CELL 106 [CODE] ===
+import plotly.express as px
+
+fig = px.imshow(
+    corr,
+    text_auto=".2f",
+    color_continuous_scale="RdBu_r",
+    zmin=-1,
+    zmax=1,
+    title="Correlation Between Patient Experience and Clinical Quality Measures"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5
+)
+
+fig.show()
+
+=== CELL 107 [CODE] ===
+fig = px.scatter(
+    rq9,
+    x="Patient Experience Index",
+    y="Count of MORT Measures Better",
+    trendline="ols",
+    opacity=0.7,
+    title="Patient Experience vs. Mortality Performance"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    xaxis_title="Patient Experience Index",
+    yaxis_title="Mortality Measures Better than National Average"
+)
+
+fig.show()
+
+=== CELL 108 [CODE] ===
+pei_corr = (
+    corr["Patient Experience Index"]
+    .drop("Patient Experience Index")
+    .sort_values(ascending=False)
+)
+
+pei_corr
+
+=== CELL 109 [MARKDOWN] ===
+### Interpretation
+
+The analysis examined whether hospitals with better patient experience also demonstrate stronger clinical quality performance.
+
+Among the three clinical quality measures, **Count of Readmission Measures Better** showed the strongest positive relationship with the Patient Experience Index (r = 0.16), indicating a weak association between better patient experiences and stronger readmission performance. This suggests that hospitals providing more positive patient experiences may also achieve slightly better outcomes in reducing avoidable readmissions.
+
+In contrast, **Count of Mortality Measures Better** exhibited virtually no relationship with patient experience (r = 0.01), implying that patient satisfaction and mortality performance are largely independent.
+
+Interestingly, **Count of Safety Measures Better** showed a weak negative relationship with patient experience (r = −0.17). Although statistically modest, this finding suggests that hospitals with stronger safety performance do not necessarily receive higher patient experience scores, highlighting that clinical safety and patient perceptions may reflect different aspects of healthcare quality.
+
+Overall, the results indicate that patient experience is only weakly associated with objective clinical quality measures, suggesting that hospitals should evaluate both patient-centered and clinical performance indicators to obtain a comprehensive assessment of healthcare quality.
+
+=== CELL 110 [MARKDOWN] ===
+### Key Takeaway
+
+Patient experience alone is not a strong indicator of overall clinical quality. While hospitals with better patient experiences tend to perform slightly better on readmission measures, patient experience shows little or no relationship with mortality performance and a weak inverse relationship with safety performance. These findings reinforce the importance of evaluating hospital quality using multiple complementary indicators rather than relying on a single measure.
+
+=== CELL 111 [MARKDOWN] ===
+# Research Question 10
+
+## Which organizational and patient experience factors best explain variation in excess readmission ratios?
+
+### Background
+
+Hospital readmission rates are widely used as indicators of healthcare quality and care coordination. Previous analyses in this study examined the individual relationships between hospital ratings, patient experience, ownership, and other quality measures with readmission outcomes. However, these factors may influence readmission performance simultaneously rather than independently.
+
+### Objective
+
+To identify the organizational and patient experience factors that are most strongly associated with excess readmission ratios by developing a multiple linear regression model. The analysis evaluates the relative contribution of patient experience, hospital quality measures, organizational characteristics, and emergency service availability in explaining variation in hospital readmission performance.
+
+=== CELL 112 [CODE] ===
+import pandas as pd
+
+rq10 = hospital_scores.merge(
+    final_df[
+        [
+            "Facility ID",
+            "Hospital Ownership",
+            "Emergency Services"
+        ]
+    ].drop_duplicates(),
+    on="Facility ID",
+    how="left"
+)
+
+rq10.head()
+
+=== CELL 113 [CODE] ===
+rq10 = pd.get_dummies(
+    rq10,
+    columns=["Hospital Ownership"],
+    drop_first=True
+)
+
+rq10["Emergency Services"] = (
+    rq10["Emergency Services"] == "Yes"
+).astype(int)
+
+=== CELL 114 [CODE] ===
+# Convert boolean columns to integers
+bool_cols = X.select_dtypes(include="bool").columns
+X[bool_cols] = X[bool_cols].astype(int)
+
+# Convert all columns to numeric
+X = X.apply(pd.to_numeric, errors="coerce")
+y = pd.to_numeric(y, errors="coerce")
+
+# Remove rows with missing values
+data = pd.concat([X, y], axis=1).dropna()
+
+X = data.drop(columns=["Excess Readmission Ratio"])
+y = data["Excess Readmission Ratio"]
+
+X = sm.add_constant(X)
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+
+=== CELL 115 [CODE] ===
+import statsmodels.api as sm
+
+X = rq10[
+    [
+        "Hospital overall rating",
+        "Patient Experience Index",
+        "Count of MORT Measures Better",
+        "Count of Safety Measures Better",
+        "Count of READM Measures Better",
+        "Emergency Services"
+    ]
+]
+
+# Add ownership dummy variables
+ownership_cols = [
+    c for c in rq10.columns
+    if c.startswith("Hospital Ownership_")
+]
+
+X = pd.concat([X, rq10[ownership_cols]], axis=1)
+
+y = rq10["Excess Readmission Ratio"]
+X = X.astype(float)
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+
+=== CELL 116 [CODE] ===
+coef = model.params.copy()
+
+# Remove constant only if it exists
+coef = coef.drop(labels=["const", "Intercept"], errors="ignore")
+
+coef = coef.sort_values()
+
+=== CELL 117 [CODE] ===
+import plotly.express as px
+
+fig = px.bar(
+    x=coef.values,
+    y=coef.index,
+    orientation="h",
+    color=coef.values,
+    color_continuous_scale="RdBu",
+    title="Factors Associated with Excess Readmission Ratio"
+)
+
+fig.update_layout(
+    template="plotly_white",
+    title_x=0.5,
+    xaxis_title="Regression Coefficient",
+    yaxis_title="Predictor"
+)
+
+fig.show()
+
+=== CELL 118 [MARKDOWN] ===
+### Interpretation
+
+A multiple linear regression model was developed to identify the organizational and quality-related factors associated with excess readmission ratios. The overall model was statistically significant (F = 84.36, p < 0.001) and explained approximately **33.5%** of the variation in hospital excess readmission ratios.
+
+Among the predictors, **Hospital Overall Rating** and **Count of Readmission Measures Better than the National Average** were both significant negative predictors of excess readmission ratios. Hospitals with higher CMS overall ratings and stronger readmission performance generally exhibited lower excess readmission ratios.
+
+In contrast, the **Patient Experience Index** was not a statistically significant predictor after accounting for the other variables in the model. Similarly, emergency service availability and hospital ownership categories did not show significant independent associations with readmission performance.
+
+Although mortality and safety measures were statistically significant, their positive coefficients should be interpreted cautiously because these quality measures are closely related to other predictors in the model. Their direction may be influenced by relationships among the explanatory variables rather than indicating that better mortality or safety performance leads to higher readmission ratios.
+
+=== CELL 119 [MARKDOWN] ===
+### Key Takeaway
+
+The regression analysis indicates that hospital readmission performance is most strongly associated with overall hospital quality and readmission-related quality measures. Patient experience, emergency service availability, and hospital ownership did not independently explain variation in excess readmission ratios after controlling for the other variables included in the model.
+
