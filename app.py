@@ -23,7 +23,8 @@ import streamlit as st
 # Page config + CVD-safe design system (mirrors the notebook's palette)
 # ----------------------------------------------------------------------
 st.set_page_config(
-    page_title="Hospital Quality & Readmission Dashboard",
+    page_title="U.S. 3000 plus Hospital Quality and Readmission Analysis: Exploring Organizational and Patient Experience Factors
+",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
