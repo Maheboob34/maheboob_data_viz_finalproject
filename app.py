@@ -95,7 +95,7 @@ OWNERSHIP_ORDER = [
 # ----------------------------------------------------------------------
 # Header
 # ----------------------------------------------------------------------
-st.title("🏥 United States Hospital Quality and Readmission Analysis")
+st.title("🏥 U.S 3000 plus Hospital Quality and Readmission Analysis")
 st.caption(
     "Exploring organizational and patient-experience factors associated with hospital "
     "performance — CMS Care Compare data (Hospital General Information · HCAHPS · "
