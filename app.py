@@ -23,7 +23,7 @@ import streamlit as st
 # Page config + CVD-safe design system (mirrors the notebook's palette)
 # ----------------------------------------------------------------------
 st.set_page_config(
-    page_title="U.S. Hospital Quality Dashboard",
+    page_title="United States Hospital Quality Dashboard",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
