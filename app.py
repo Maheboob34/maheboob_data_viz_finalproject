@@ -1,5 +1,5 @@
 """
-Hospital Quality and Readmission Analysis Dashboard
+U.S. 3000 plus Hospital Quality and Readmission Analysis: Exploring Organizational and Patient Experience Factors
 ----------------------------------------------------
 Interactive Streamlit companion to the "Hospital Quality and Readmission
 Analysis" notebook. Built on CMS Care Compare data (Hospital General
