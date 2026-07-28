@@ -26,7 +26,7 @@ st.title("🏥 United States Hospital Quality and Readmission Analysis")
 
 st.markdown(
     "### Exploring Organizational and Patient Experience Factors Across More Than 3,000 U.S. Hospitals"
-),
+)
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
