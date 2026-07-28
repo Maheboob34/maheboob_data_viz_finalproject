@@ -22,11 +22,8 @@ import streamlit as st
 # ----------------------------------------------------------------------
 # Page config + CVD-safe design system (mirrors the notebook's palette)
 # ----------------------------------------------------------------------
-st.title("🏥 United States Hospital Quality and Readmission Analysis")
-
-st.markdown(
-    "### Exploring Organizational and Patient Experience Factors Across More Than 3,000 U.S. Hospitals"
-)
+st.set_page_config(
+    page_title="U.S. Hospital Quality Dashboard",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
